@@ -1,15 +1,15 @@
 // const a = require("./database");
 const dotenv = require("dotenv");
 dotenv.config();
-const Pool = require("pg").Pool;
+// const Pool = require("pg").Pool;
 
-const pool = new Pool({
-  user: process.env.USER,
-  host: process.env.HOST,
-  database: process.env.DB,
-  password: process.env.PASS,
-  port: process.env.PORT,
-});
+// const pool = new Pool({
+//   user: process.env.USER,
+//   host: process.env.HOST,
+//   database: process.env.DB,
+//   password: process.env.PASS,
+//   port: process.env.PORT,
+// });
 
 // MYSQL
 let mysql = require("mysql");
@@ -17,6 +17,7 @@ let db = mysql.createConnection({
   host: "localhost",
   user: "root",
   password: "Motaz123!",
+  database: "alarm",
 });
 
 db.connect(function (err) {
@@ -132,19 +133,30 @@ const update = (request, response) => {
 
 const updateFromEsp = (data) => {
   // console.log(data);
+  // "id",
+  // "mac_addr",
+  // "publish_to",
+  // "alarm_count",
+  // "warn_count",
+  // "temp",
+  // "hum",
+  // "accel_x",
+  // "accel_y",
+  // "accel_z",
+  // "accel_all",
   let dataArray = Object.values(data);
-  let q = `UPDATE ${table} SET ${columns[0]} = ${data.columns[0]}, 
-  ${columns[1]} = ${data.columns[1]}, 
-  ${columns[2]} = ${data.columns[2]}, 
-  ${columns[3]} = ${data.columns[3]}, 
-  ${columns[4]} = ${data.columns[4]}, 
-  ${columns[5]} = ${data.columns[5]}, 
-  ${columns[6]} = ${data.columns[6]}, 
-  ${columns[7]} = ${data.columns[7]}, 
-  ${columns[8]} = ${data.columns[8]}, 
-  ${columns[9]} = ${data.columns[9]}, 
-  ${columns[10]} = ${data.columns[10]} 
-  WHERE ${columns[0]} = ${data.columns[0]}`;
+  let q = `UPDATE ${table} SET ${columns[0]} = ${data.id}, 
+  ${columns[1]} = ${data.mac_addr}, 
+  ${columns[2]} = ${data.publish_to}, 
+  ${columns[3]} = ${data.alarm_count}, 
+  ${columns[4]} = ${data.warn_count}, 
+  ${columns[5]} = ${data.temp}, 
+  ${columns[6]} = ${data.hum}, 
+  ${columns[7]} = ${data.accel_x}, 
+  ${columns[8]} = ${data.accel_y}, 
+  ${columns[9]} = ${data.accel_z}, 
+  ${columns[10]} = ${data.accel_all} 
+  WHERE ${columns[0]} = ${data.id}`;
 
   const sql = q;
   db.query(sql, function (err, result) {

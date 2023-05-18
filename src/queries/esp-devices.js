@@ -11,6 +11,19 @@ const pool = new Pool({
   port: process.env.PORT,
 });
 
+// MYSQL
+let mysql = require("mysql");
+let db = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "Motaz123!",
+});
+
+db.connect(function (err) {
+  if (err) throw err;
+  console.log("Connected!");
+});
+
 const table = "sensors";
 const columns = [
   "id",
@@ -28,20 +41,27 @@ const columns = [
 const pk = columns[0];
 
 const get = (request, response) => {
-  pool.query(
-    "SELECT * FROM " + table + " ORDER BY id ASC",
-    (error, results) => {
-      if (error) {
-        throw error;
-      }
-      response.status(200).json(results.rows);
-    }
-  );
+  const sql = "SELECT * FROM " + table;
+
+  db.query(sql, function (err, result) {
+    if (err) throw err;
+    // console.log(result);
+    response.status(200).json(result.rows);
+  });
+
+  // pool.query(
+  //   "SELECT * FROM " + table + " ORDER BY id ASC",
+  //   (error, results) => {
+  //     if (error) {
+  //       throw error;
+  //     }
+  //     response.status(200).json(results.rows);
+  //   }
+  // );
 };
 
 const getById = (request, response) => {
   const id = parseInt(request.params.id);
-
   pool.query(
     "SELECT * FROM " + table + " WHERE " + pk + "= $1",
     [id],
@@ -66,69 +86,96 @@ const getByIdSingleParam = async (id) => {
 };
 
 const create = (request, response) => {
-  //   const { id, name } = request.body;
-
-  //   console.log(request.body);
-  pool.query(
+  const sql =
     "INSERT INTO " +
-      table +
-      " (" +
-      columns.toString() +
-      ") VALUES (" +
-      Object.values(request.body).toString() +
-      ")",
-    (error, results) => {
-      if (error) {
-        throw error;
-      }
-      response.status(201).send(`User added with ID: ${results.insertId}`);
-    }
-  );
+    table +
+    " (" +
+    columns.toString() +
+    ") VALUES (" +
+    Object.values(request.body).toString() +
+    ")";
+  db.query(sql, function (err, result) {
+    if (err) throw err;
+    console.log("1 record inserted");
+  });
+  // pool.query(
+  //   "INSERT INTO " +
+  //     table +
+  //     " (" +
+  //     columns.toString() +
+  //     ") VALUES (" +
+  //     Object.values(request.body).toString() +
+  //     ")",
+  //   (error, results) => {
+  //     if (error) {
+  //       throw error;
+  //     }
+  //     response.status(201).send(`User added with ID: ${results.insertId}`);
+  //   }
+  // );
 };
 
 const update = (request, response) => {
-  const id = parseInt(request.params.id);
-  const { name } = request.body;
-
-  pool.query(
-    "UPDATE " + table + " SET id = $1, name = $2 WHERE  " + pk + " = $1",
-    [id, name],
-    (error, results) => {
-      if (error) {
-        throw error;
-      }
-      response.status(200).send(`User modified with ID: ${id}`);
-    }
-  );
+  // const id = parseInt(request.params.id);
+  // const { name } = request.body;
+  // pool.query(
+  //   "UPDATE " + table + " SET id = $1, name = $2 WHERE  " + pk + " = $1",
+  //   [id, name],
+  //   (error, results) => {
+  //     if (error) {
+  //       throw error;
+  //     }
+  //     response.status(200).send(`User modified with ID: ${id}`);
+  //   }
+  // );
 };
 
 const updateFromEsp = (data) => {
   // console.log(data);
-
-  let q = "";
   let dataArray = Object.values(data);
+  let q = `UPDATE ${table} SET ${columns[0]} = ${data.columns[0]}, 
+  ${columns[1]} = ${data.columns[1]}, 
+  ${columns[2]} = ${data.columns[2]}, 
+  ${columns[3]} = ${data.columns[3]}, 
+  ${columns[4]} = ${data.columns[4]}, 
+  ${columns[5]} = ${data.columns[5]}, 
+  ${columns[6]} = ${data.columns[6]}, 
+  ${columns[7]} = ${data.columns[7]}, 
+  ${columns[8]} = ${data.columns[8]}, 
+  ${columns[9]} = ${data.columns[9]}, 
+  ${columns[10]} = ${data.columns[10]} 
+  WHERE ${columns[0]} = ${data.columns[0]}`;
 
-  columns.forEach((col, index) => {
-    q = q + col + "=";
-    q = q + "$" + (index + 1) + ",";
+  const sql = q;
+  db.query(sql, function (err, result) {
+    if (err) throw err;
+    console.log("1 record inserted");
   });
 
-  pool.query(
-    "UPDATE " +
-      table +
-      " SET " +
-      q.substring(0, q.length - 1) +
-      " WHERE  " +
-      pk +
-      " = $1",
-    dataArray,
-    (error, results) => {
-      if (error) {
-        throw error.message;
-      }
-      // response.status(200).send(`User modified with ID: ${id}`);
-    }
-  );
+  // let q = "";
+  // let dataArray = Object.values(data);
+
+  // columns.forEach((col, index) => {
+  //   q = q + col + "=";
+  //   q = q + "$" + (index + 1) + ",";
+  // });
+
+  // pool.query(
+  //   "UPDATE " +
+  //     table +
+  //     " SET " +
+  //     q.substring(0, q.length - 1) +
+  //     " WHERE  " +
+  //     pk +
+  //     " = $1",
+  //   dataArray,
+  //   (error, results) => {
+  //     if (error) {
+  //       throw error.message;
+  //     }
+  //     // response.status(200).send(`User modified with ID: ${id}`);
+  //   }
+  // );
 };
 
 const remove = (request, response) => {

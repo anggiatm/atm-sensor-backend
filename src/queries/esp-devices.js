@@ -11,7 +11,7 @@ const pool = new Pool({
   port: process.env.PORT,
 });
 
-const table = "esp_devices";
+const table = "sensors";
 const columns = [
   "id",
   "mac_addr",

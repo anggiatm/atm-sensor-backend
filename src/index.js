@@ -57,6 +57,7 @@ client.on("message", async (topic, payload) => {
 
   if (await wa.isAlarmIncrease(id, alarm_count)) {
     wa.sendWhatsappMessage("6281315506090", "Alarm ter-Trigger");
+    wa.sendWhatsappMessage("6282126289841", "Alarm ter-Trigger");
   }
   esp.updateFromEsp(JSON.parse(payload.toString()));
 });

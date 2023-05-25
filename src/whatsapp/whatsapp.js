@@ -1,14 +1,41 @@
 const { default: axios } = require("axios");
 const esp = require("../queries/esp-devices");
 
-const isAlarmIncrease = async (id, valAlarmNow) => {
-  const valAlarmBefore = await esp.getByIdSingleParam(id);
+const isAlarmIncrease = (id, valAlarmNow, callback) => {
+  let valAlarmBefore;
+
+  esp.getByIdSingleParam(id, function (result) {
+    valAlarmBefore = result[0];
+
+    //rest of your code goes in here
+  });
+
+  console.log(valAlarmBefore);
+  // const valAlarmBefore = await esp.getByIdSingleParam(id);
   if (valAlarmNow > valAlarmBefore[0].alarm_count) {
     return true;
   } else {
     return false;
   }
 };
+
+// const isAlarmIncrease = async (id, valAlarmNow) => {
+//   let valAlarmBefore;
+
+//   esp.getByIdSingleParam(id, function (result) {
+//     valAlarmBefore = result[0];
+
+//     //rest of your code goes in here
+//   });
+
+//   console.log(valAlarmBefore);
+//   // const valAlarmBefore = await esp.getByIdSingleParam(id);
+//   if (valAlarmNow > valAlarmBefore[0].alarm_count) {
+//     return true;
+//   } else {
+//     return false;
+//   }
+// };
 
 const sendWhatsappMessage = (recipient, message) => {
   const url =

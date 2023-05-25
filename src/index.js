@@ -1,17 +1,25 @@
 const express = require("express");
-
+const mysql = require("mysql");
 const bodyParser = require("body-parser");
-const app = express();
+const axios = require("axios");
+// const connect = require("connect"),
+const http = require("http");
 const port = 3003;
 
-const db = require("./queries/queries");
-const esp = require("./queries/esp-devices");
-const wa = require("./whatsapp/whatsapp");
+const app = express();
+// .use(function (req, res, next) {
+//   console.log(next());
+//   next();
+// })
+// .use(function (req, res, next) {
+//   console.log("end");
+//   res.end("hello world");
+// });
 
 const cors = require("cors");
 const corsOptions = {
   origin: "*",
-  credentials: true, //access-control-allow-credentials:true
+  credentials: false, //access-control-allow-credentials:true
   optionSuccessStatus: 200,
 };
 
@@ -24,15 +32,38 @@ app.use(
   })
 );
 
+// Jalankan server
+app.listen(port);
+// app.listen(port, () => {
+//   console.log(`Server berjalan pada port ${port}`);
+// });
+
+// Konfigurasi database MySQL
+const db = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "alarm",
+});
+
+// Hubungkan ke database MySQL
+db.connect((err) => {
+  if (err) {
+    throw err;
+  }
+  console.log("Terhubung ke database MySQL");
+});
+
+// MQTT CONFIG
 const mqtt = require("mqtt");
 
-const host = "103.77.106.114";
-// const host = "192.168.137.1";
-const mqtt_port = "1883";
+const mqttHost = "103.77.106.114";
+// const mqttHost = "192.168.137.1";
+const mqttPort = "1883";
 const clientId = "nodejs_webserver";
 
-const connectUrl = `mqtt://${host}:${mqtt_port}`;
-const client = mqtt.connect(connectUrl, {
+const mqttUrl = `mqtt://${mqttHost}:${mqttPort}`;
+const mqttClient = mqtt.connect(mqttUrl, {
   clientId,
   clean: true,
   connectTimeout: 4000,
@@ -42,42 +73,224 @@ const client = mqtt.connect(connectUrl, {
 });
 
 const topic = "tes/tes";
-client.on("connect", () => {
+const topic2 = "tes/tis";
+
+mqttClient.on("connect", () => {
   console.log("Connected");
-  client.subscribe([topic], () => {
+  mqttClient.subscribe([topic, topic2], () => {
     console.log(`Subscribe to topic '${topic}'`);
   });
 });
 
-client.on("message", async (topic, payload) => {
-  console.log(payload.toString());
+// Menerima pesan MQTT
+mqttClient.on("message", (topic, message) => {
+  // console.log(`Menerima pesan pada topik: ${topic}`);
+  // console.log(`Isi pesan: ${message.toString()}`);
 
-  let id = JSON.parse(payload.toString()).id;
-  let alarm_count = JSON.parse(payload.toString()).alarm_count;
-
-  if (await wa.isAlarmIncrease(id, alarm_count)) {
-    wa.sendWhatsappMessage("6281315506090", "Alarm ter-Trigger");
-    wa.sendWhatsappMessage("6282126289841", "Alarm ter-Trigger");
+  try {
+    const data = JSON.parse(message.toString());
+    try {
+      const sql = "UPDATE sensors SET ? WHERE id = ?";
+      db.query(sql, [data, data.id], (error, result) => {
+        // console.log(error == true);
+        console.log(`Data dengan id ${data.id} berhasil diperbarui`);
+      });
+    } catch (err) {
+      console.error("Gagal menjalankan query database:", err);
+    }
+  } catch (error) {
+    console.error("Gagal mengurai pesan MQTT:", error);
   }
-  esp.updateFromEsp(JSON.parse(payload.toString()));
 });
 
-app.get("/", (request, response) => {
-  response.json({ info: "Node.js, Express, and Postgres API" });
+const checkDatabase = () => {
+  const recipient = "6281315506090";
+  const apikey = "8144895";
+  // Kode untuk mengecek database
+  db.query("SELECT * FROM sensors", (err, results) => {
+    if (err) {
+      throw err;
+    }
+    // Mengeliminasi objek jika objek.key != 1
+    const filteredResults = results.filter((obj) => obj.alarm_state === 1);
+    let message = "DEVICE ALARM ! %0ADevice ID: %0A";
+    const ids = filteredResults.map((row) => row.id);
+
+    if (ids.length > 0) {
+      message = message + ids.toString().replace(",", "%0A");
+      message = message + "%0A%0APlease check device!";
+
+      const url =
+        "https://api.callmebot.com/whatsapp.php?phone=" +
+        recipient +
+        "&text=" +
+        message +
+        "&apikey=" +
+        apikey;
+
+      // try {
+      //   axios
+      //     .get(url, {
+      //       headers: {
+      //         Accept: "application/json",
+      //         "Content-Type": "application/json;charset=UTF-8",
+      //       },
+      //     })
+      //     .then((data, error) => {
+      //       if (error) {
+      //         throw error;
+      //       }
+      //       console.log(data);
+      //     });
+      // } catch (error) {
+      //   console.error("Kirim Notifikasi Whatsapp Gagal", error);
+      // }
+    }
+  });
+};
+// Menjalankan pengecekan setiap 5 menit
+// const interval = 1 * 60 * 1000; // 5 menit dalam milidetik
+const interval = 1 * 60 * 1000;
+setInterval(checkDatabase, interval);
+// Mendapatkan semua data
+app.get("/esp", (req, res) => {
+  const sql = "SELECT * FROM sensors";
+  db.query(sql, (err, results) => {
+    if (err) {
+      throw err;
+    }
+    console.log(results[1].last_update);
+    res.json(results);
+  });
 });
 
-app.listen(port, () => {
-  console.log(`App running on port ${port}.`);
+// Mendapatkan data berdasarkan ID
+app.get("/esp/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = "SELECT * FROM sensors WHERE id = ?";
+  db.query(sql, id, (err, result) => {
+    if (err) {
+      throw err;
+    }
+    res.json(result);
+  });
 });
 
-app.get("/users", db.getUsers);
-app.get("/users/:id", db.getUserById);
-app.post("/users", db.createUser);
-app.put("/users/:id", db.updateUser);
-app.delete("/users/:id", db.deleteUser);
+// Menambahkan data baru
+app.post("/esp", (req, res) => {
+  console.log(req.body);
+  const {
+    id,
+    mac_addr,
+    publish_to,
+    alarm_state,
+    buzzer_state,
+    alarm_count,
+    limit_switch,
+    temp,
+    hum,
+    accel_x,
+    accel_y,
+    accel_z,
+    accel_all,
+  } = req.body;
+  const sql =
+    "INSERT INTO sensors (id, mac_addr, publish_to, alarm_state, buzzer_state, alarm_count, limit_switch, temp, hum, accel_x, accel_y, accel_z, accel_all) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  db.query(
+    sql,
+    [
+      id,
+      mac_addr,
+      publish_to,
+      alarm_state,
+      buzzer_state,
+      alarm_count,
+      limit_switch,
+      temp,
+      hum,
+      accel_x,
+      accel_y,
+      accel_z,
+      accel_all,
+    ],
+    (err, result) => {
+      if (err) {
+        throw err;
+      }
+      res.send("Data berhasil ditambahkan");
+    }
+  );
+});
 
-app.get("/esp", esp.get);
-app.get("/esp/:id", esp.getById);
-app.post("/esp", esp.create);
-app.put("/esp/:id", esp.update);
-app.delete("/esp/:id", esp.remove);
+// Mengupdate data berdasarkan ID
+app.put("/esp/:id", (req, res) => {
+  const id = req.params.id;
+  const {
+    mac_addr,
+    publish_to,
+    alarm_state,
+    buzzer_state,
+    alarm_count,
+    limit_switch,
+    temp,
+    hum,
+    accel_x,
+    accel_y,
+    accel_z,
+    accel_all,
+  } = req.body;
+  const sql =
+    "UPDATE sensors SET mac_addr = ?, publish_to = ?, alarm_state = ?, buzzer_state = ?, alarm_count = ?, limit_switch = ?, temp = ?, hum = ?, accel_x = ?, accel_y = ?, accel_z = ?, accel_all = ? WHERE id = ?";
+  db.query(
+    sql,
+    [
+      mac_addr,
+      publish_to,
+      alarm_state,
+      buzzer_state,
+      alarm_count,
+      limit_switch,
+      temp,
+      hum,
+      accel_x,
+      accel_y,
+      accel_z,
+      accel_all,
+      id,
+    ],
+    (err, result) => {
+      if (err) {
+        throw err;
+      }
+      res.send("Data berhasil diupdate");
+    }
+  );
+});
+
+// Menghapus data berdasarkan ID
+app.delete("/esp/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = "DELETE FROM sensors WHERE id = ?";
+  db.query(sql, id, (err, result) => {
+    if (err) {
+      throw err;
+    }
+    res.send("Data berhasil dihapus");
+  });
+});
+
+// Mengirimkan pesan publish ke MQTT
+app.post("/esp/command", (req, res) => {
+  // console.log(req.body);
+  // const { id, buzzer, reboot } = req.body;
+  // console.log(JSON.stringify(req.body));
+
+  mqttClient.publish("esp/command", JSON.stringify(req.body), (err) => {
+    if (err) {
+      throw err;
+    }
+    res.send({
+      message: `Pesan dipublish ke `,
+    });
+  });
+});

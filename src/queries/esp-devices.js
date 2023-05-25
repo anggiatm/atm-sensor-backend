@@ -12,18 +12,18 @@ dotenv.config();
 // });
 
 // MYSQL
-let mysql = require("mysql");
-let db = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "Motaz123!",
-  database: "alarm",
-});
+// let mysql = require("mysql");
+// let db = mysql.createConnection({
+//   host: "localhost",
+//   user: "root",
+//   password: "Motaz123!",
+//   database: "alarm",
+// });
 
-db.connect(function (err) {
-  if (err) throw err;
-  console.log("Connected!");
-});
+// db.connect(function (err) {
+//   if (err) throw err;
+//   console.log("Connected!");
+// });
 
 const table = "sensors";
 const columns = [
@@ -75,15 +75,29 @@ const getById = (request, response) => {
   );
 };
 
-const getByIdSingleParam = async (id) => {
-  try {
-    const res = await pool.query(
-      "SELECT * FROM " + table + " WHERE " + pk + "= 'ABC123'"
-    );
-    return res.rows;
-  } catch (err) {
-    return err.stack;
-  }
+// const getByIdSingleParam = async (id) => {
+//   try {
+//     const res = await pool.query(
+//       "SELECT * FROM " + table + " WHERE " + pk + "= 'ABC123'"
+//     );
+//     return res.rows;
+//   } catch (err) {
+//     return err.stack;
+//   }
+// };
+
+const getByIdSingleParam = (id, callback) => {
+  const sql = `SELECT * FROM ${table} WHERE id = "${id}"`;
+
+  db.query(sql, function (err, results) {
+    if (err) {
+      throw err;
+    }
+    console.log(results[0].objid); // good
+    stuff_i_want = results[0].objid; // Scope is larger than function
+
+    return callback(results[0].objid);
+  });
 };
 
 const create = (request, response) => {
@@ -145,24 +159,27 @@ const updateFromEsp = (data) => {
   // "accel_z",
   // "accel_all",
   let dataArray = Object.values(data);
-  let q = `UPDATE ${table} SET ${columns[0]} = ${data.id}, 
-  ${columns[1]} = ${data.mac_addr}, 
-  ${columns[2]} = ${data.publish_to}, 
-  ${columns[3]} = ${data.alarm_count}, 
-  ${columns[4]} = ${data.warn_count}, 
-  ${columns[5]} = ${data.temp}, 
-  ${columns[6]} = ${data.hum}, 
-  ${columns[7]} = ${data.accel_x}, 
-  ${columns[8]} = ${data.accel_y}, 
-  ${columns[9]} = ${data.accel_z}, 
-  ${columns[10]} = ${data.accel_all} 
-  WHERE ${columns[0]} = ${data.id}`;
+  let q = `UPDATE ${table} SET `;
+  q = q + `${columns[0]} = "${data.id}", `;
+  q = q + `${columns[1]} = "${data.mac_addr}", `;
+  q = q + `${columns[2]} = "${data.publish_to}", `;
+  q = q + `${columns[3]} = ${data.alarm_count}, `;
+  q = q + `${columns[4]} = ${data.warn_count}, `;
+  q = q + `${columns[5]} = ${data.temp}, `;
+  q = q + `${columns[6]} = ${data.hum}, `;
+  q = q + `${columns[7]} = ${data.accel_x}, `;
+  q = q + `${columns[8]} = ${data.accel_y}, `;
+  q = q + `${columns[9]} = ${data.accel_z}, `;
+  q = q + `${columns[10]} = ${data.accel_all} `;
+  q = q + `WHERE ${columns[0]} = "${data.id}"`;
 
   const sql = q;
-  db.query(sql, function (err, result) {
-    if (err) throw err;
-    console.log("1 record inserted");
-  });
+
+  console.log(q);
+  // db.query(sql, function (err, result) {
+  //   if (err) throw err;
+  //   console.log("1 record inserted");
+  // });
 
   // let q = "";
   // let dataArray = Object.values(data);

@@ -16,6 +16,8 @@ const app = express();
 //   res.end("hello world");
 // });
 
+const table = "sensor";
+
 const cors = require("cors");
 const corsOptions = {
   origin: "*",
@@ -40,9 +42,9 @@ app.listen(port);
 
 // Konfigurasi database MySQL
 const db = mysql.createConnection({
-  host: "localhost",
+  host: "103.77.106.114",
   user: "root",
-  password: "",
+  password: "Motaz123!",
   database: "alarm",
 });
 
@@ -77,37 +79,37 @@ const topic2 = "tes/tis";
 
 mqttClient.on("connect", () => {
   console.log("Connected");
-  mqttClient.subscribe([topic, topic2], () => {
-    console.log(`Subscribe to topic '${topic}'`);
-  });
+  // mqttClient.subscribe([topic, topic2], () => {
+  //   console.log(`Subscribe to topic '${topic}'`);
+  // });
 });
 
 // Menerima pesan MQTT
-mqttClient.on("message", (topic, message) => {
-  // console.log(`Menerima pesan pada topik: ${topic}`);
-  // console.log(`Isi pesan: ${message.toString()}`);
+// mqttClient.on("message", (topic, message) => {
+//   // console.log(`Menerima pesan pada topik: ${topic}`);
+//   // console.log(`Isi pesan: ${message.toString()}`);
 
-  try {
-    const data = JSON.parse(message.toString());
-    try {
-      const sql = "UPDATE sensors SET ? WHERE id = ?";
-      db.query(sql, [data, data.id], (error, result) => {
-        // console.log(error == true);
-        console.log(`Data dengan id ${data.id} berhasil diperbarui`);
-      });
-    } catch (err) {
-      console.error("Gagal menjalankan query database:", err);
-    }
-  } catch (error) {
-    console.error("Gagal mengurai pesan MQTT:", error);
-  }
-});
+//   try {
+//     const data = JSON.parse(message.toString());
+//     try {
+//       const sql = "UPDATE ${table} SET ? WHERE id = ?";
+//       db.query(sql, [data, data.id], (error, result) => {
+//         // console.log(error == true);
+//         console.log(`Data dengan id ${data.id} berhasil diperbarui`);
+//       });
+//     } catch (err) {
+//       console.error("Gagal menjalankan query database:", err);
+//     }
+//   } catch (error) {
+//     console.error("Gagal mengurai pesan MQTT:", error);
+//   }
+// });
 
 const checkDatabase = () => {
   const recipient = "6281315506090";
   const apikey = "8144895";
   // Kode untuk mengecek database
-  db.query("SELECT * FROM sensors", (err, results) => {
+  db.query("SELECT * FROM ${table}", (err, results) => {
     if (err) {
       throw err;
     }
@@ -154,12 +156,12 @@ const interval = 1 * 60 * 1000;
 setInterval(checkDatabase, interval);
 // Mendapatkan semua data
 app.get("/esp", (req, res) => {
-  const sql = "SELECT * FROM sensors";
+  const sql = `SELECT * FROM ${table}`;
   db.query(sql, (err, results) => {
     if (err) {
       throw err;
     }
-    console.log(results[1].last_update);
+    // console.log(results[1].last_update);
     res.json(results);
   });
 });
@@ -167,12 +169,12 @@ app.get("/esp", (req, res) => {
 // Mendapatkan data berdasarkan ID
 app.get("/esp/:id", (req, res) => {
   const id = req.params.id;
-  const sql = "SELECT * FROM sensors WHERE id = ?";
+  const sql = `SELECT * FROM ${table} WHERE id = ?`;
   db.query(sql, id, (err, result) => {
     if (err) {
       throw err;
     }
-    res.json(result);
+    res.json(result[0]);
   });
 });
 
@@ -194,8 +196,7 @@ app.post("/esp", (req, res) => {
     accel_z,
     accel_all,
   } = req.body;
-  const sql =
-    "INSERT INTO sensors (id, mac_addr, publish_to, alarm_state, buzzer_state, alarm_count, limit_switch, temp, hum, accel_x, accel_y, accel_z, accel_all) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  const sql = `INSERT INTO ${table} (id, mac_addr, publish_to, alarm_state, buzzer_state, alarm_count, limit_switch, temp, hum, accel_x, accel_y, accel_z, accel_all) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
   db.query(
     sql,
     [
@@ -239,8 +240,7 @@ app.put("/esp/:id", (req, res) => {
     accel_z,
     accel_all,
   } = req.body;
-  const sql =
-    "UPDATE sensors SET mac_addr = ?, publish_to = ?, alarm_state = ?, buzzer_state = ?, alarm_count = ?, limit_switch = ?, temp = ?, hum = ?, accel_x = ?, accel_y = ?, accel_z = ?, accel_all = ? WHERE id = ?";
+  const sql = `UPDATE ${table} SET mac_addr = ?, publish_to = ?, alarm_state = ?, buzzer_state = ?, alarm_count = ?, limit_switch = ?, temp = ?, hum = ?, accel_x = ?, accel_y = ?, accel_z = ?, accel_all = ? WHERE id = ?`;
   db.query(
     sql,
     [
@@ -270,7 +270,7 @@ app.put("/esp/:id", (req, res) => {
 // Menghapus data berdasarkan ID
 app.delete("/esp/:id", (req, res) => {
   const id = req.params.id;
-  const sql = "DELETE FROM sensors WHERE id = ?";
+  const sql = `DELETE FROM {table} WHERE id = ?`;
   db.query(sql, id, (err, result) => {
     if (err) {
       throw err;
@@ -281,9 +281,9 @@ app.delete("/esp/:id", (req, res) => {
 
 // Mengirimkan pesan publish ke MQTT
 app.post("/esp/command", (req, res) => {
-  // console.log(req.body);
-  // const { id, buzzer, reboot } = req.body;
-  // console.log(JSON.stringify(req.body));
+  console.log(req.body);
+  const { id, buzzer, reboot } = req.body;
+  console.log(JSON.stringify(req.body));
 
   mqttClient.publish("esp/command", JSON.stringify(req.body), (err) => {
     if (err) {
